@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/floatingLayout"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/floating_bg"
+    android:padding="12dp">
+
+    <!-- 标题栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="红包助手"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="@color/white" />
+
+        <ImageButton
+            android:id="@+id/btnClose"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="关闭" />
+
+    </LinearLayout>
+
+    <!-- 状态显示 -->
+    <TextView
+        android:id="@+id/tvFloatStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="等待中"
+        android:textSize="12sp"
+        android:textColor="@color/white"
+        android:layout_marginTop="8dp" />
+
+    <!-- 统计 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="8dp">
+
+        <TextView
+            android:id="@+id/tvFloatSuccess"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="成功: 0"
+            android:textSize="11sp"
+            android:textColor="#4CAF50" />
+
+        <TextView
+            android:id="@+id/tvFloatFail"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="失败: 0"
+            android:textSize="11sp"
+            android:textColor="#F44336" />
+
+    </LinearLayout>
+
+    <!-- 控制按钮 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="12dp">
+
+        <Button
+            android:id="@+id/btnFloatStart"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:layout_weight="1"
+            android:text="开始"
+            android:textSize="12sp"
+            android:backgroundTint="#4CAF50"
+            android:layout_marginEnd="4dp" />
+
+        <Button
+            android:id="@+id/btnFloatStop"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:layout_weight="1"
+            android:text="停止"
+            android:textSize="12sp"
+            android:backgroundTint="#F44336"
+            android:enabled="false"
+            android:layout_marginStart="4dp" />
+
+    </LinearLayout>
+
+</LinearLayout>
