@@ -1,16 +1,16 @@
-name: Build APK
+name: Android Build and Sign
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, master ]
-  workflow_dispatch:
+    branches: [ main ]
+  workflow_dispatch:  # Allow manual triggering
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -20,102 +20,72 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
+        cache: gradle
 
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    # 下载 Gradle Wrapper（如果不存在）
-    - name: Setup Gradle Wrapper
-      run: |
-        if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ]; then
-          echo "Downloading Gradle Wrapper..."
-          mkdir -p gradle/wrapper
-          curl -L -o gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/v8.2.0/gradle/wrapper/gradle-wrapper.jar
-          echo "Gradle Wrapper downloaded"
-        fi
-        chmod +x gradlew
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
 
-    # 解码签名密钥（从 GitHub Secrets 读取）
-    - name: Decode Keystore
-      env:
-        ENCODED_KEYSTORE: ${{ secrets.KEYSTORE_BASE64 }}
+    - name: Create local.properties
       run: |
-        if [ -n "$ENCODED_KEYSTORE" ]; then
-          echo "Creating keystore from secrets..."
-          echo "$ENCODED_KEYSTORE" | base64 -d > app/keystore.jks
-          echo "Keystore created successfully"
-        else
-          echo "No keystore secret found, will build unsigned APK"
-        fi
+        echo "sdk.dir=$ANDROID_HOME" > local.properties
 
-    # 创建签名配置
-    - name: Create Signing Config
+    # Restore signing config from GitHub Secrets if available
+    - name: Setup signing configuration
       env:
+        KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       run: |
-        if [ -n "$KEYSTORE_PASSWORD" ]; then
-          echo "storeFile=keystore.jks" > app/signing.properties
-          echo "storePassword=$KEYSTORE_PASSWORD" >> app/signing.properties
-          echo "keyAlias=$KEY_ALIAS" >> app/signing.properties
-          echo "keyPassword=$KEY_PASSWORD" >> app/signing.properties
+        if [ ! -z "$KEYSTORE_BASE64" ]; then
+          echo "🔐 Setting up signing configuration..."
+          echo "$KEYSTORE_BASE64" | base64 --decode > app/my-release-key.jks
+          
+          # Create signing.properties
+          cat > app/signing.properties << EOF
+storeFile=my-release-key.jks
+storePassword=$KEYSTORE_PASSWORD
+keyAlias=$KEY_ALIAS
+keyPassword=$KEY_PASSWORD
+EOF
+          echo "✅ Signing configuration created"
+        else
+          echo "⚠️  No signing configuration found, will build unsigned APK"
         fi
 
-    - name: Build Debug APK
-      run: ./gradlew assembleDebug --stacktrace --no-daemon
-
-    - name: Check Debug APK
-      run: ls -la app/build/outputs/apk/debug/ || echo "Debug output directory not found"
-
-    - name: Upload Debug APK
-      uses: actions/upload-artifact@v4
-      if: success()
-      with:
-        name: debug-apk
-        path: app/build/outputs/apk/debug/*.apk
-        retention-days: 30
-        if-no-files-found: warn
-
     - name: Build Release APK
-      run: ./gradlew assembleRelease --stacktrace --no-daemon
-
-    - name: Check Release APK
-      run: ls -la app/build/outputs/apk/release/ || echo "Release output directory not found"
-
-    - name: Upload Release APK
-      uses: actions/upload-artifact@v4
-      if: success()
-      with:
-        name: release-apk
-        path: app/build/outputs/apk/release/*.apk
-        retention-days: 30
-        if-no-files-found: warn
-
-    - name: Create Release
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main' && success()
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          app/build/outputs/apk/debug/*.apk
-          app/build/outputs/apk/release/*.apk
-        tag_name: v${{ github.run_number }}
-        name: Release v${{ github.run_number }}
-        body: |
-          Automated build from GitHub Actions
-          
-          ## 安装说明
-          1. 下载 `app-release.apk`（推荐）或 `app-debug.apk`
-          2. 在 Android 手机上安装
-          3. 开启无障碍服务和悬浮窗权限
-          4. 准备红包截图到 `/sdcard/Pictures/红包.png`
-          5. 点击"开始抢红包"
+      run: |
+        echo "🚀 Building Release APK..."
+        ./gradlew assembleRelease --stacktrace
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Optional: Add Gradle daemon JVM args for better performance
+        GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.parallel=true
 
-    # 清理签名文件
-    - name: Cleanup
+    - name: Clean up signing files
       if: always()
       run: |
-        rm -f app/keystore.jks
+        echo "🧹 Cleaning up signing files..."
+        rm -f app/my-release-key.jks
         rm -f app/signing.properties
+        echo "✅ Signing files cleaned up"
+
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-release
+        path: app/build/outputs/apk/release/*.apk
+        retention-days: 7
+
+    - name: List build outputs
+      run: |
+        echo "📁 Build outputs:"
+        find app/build/outputs -name "*.apk" -type f
+
+    - name: Build summary
+      run: |
+        echo "✅ Build completed successfully!"
+        echo "📦 APK artifacts are available in the workflow artifacts section."
+        echo "🔐 Signed: ${{ env.KEYSTORE_BASE64 != '' }}"
