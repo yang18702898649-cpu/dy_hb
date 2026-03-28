@@ -21,15 +21,19 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
 
-    - name: Check Gradle Wrapper
+    # 下载 Gradle Wrapper（如果不存在）
+    - name: Setup Gradle Wrapper
       run: |
         if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ]; then
-          echo "Warning: gradle-wrapper.jar not found, trying to download..."
-          ./gradlew --version || true
+          echo "Downloading Gradle Wrapper..."
+          mkdir -p gradle/wrapper
+          curl -L -o gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/v8.2.0/gradle/wrapper/gradle-wrapper.jar
+          echo "Gradle Wrapper downloaded"
         fi
+        chmod +x gradlew
 
     # 解码签名密钥（从 GitHub Secrets 读取）
     - name: Decode Keystore
@@ -40,7 +44,6 @@ jobs:
           echo "Creating keystore from secrets..."
           echo "$ENCODED_KEYSTORE" | base64 -d > app/keystore.jks
           echo "Keystore created successfully"
-          ls -la app/keystore.jks
         else
           echo "No keystore secret found, will build unsigned APK"
         fi
@@ -57,38 +60,40 @@ jobs:
           echo "storePassword=$KEYSTORE_PASSWORD" >> app/signing.properties
           echo "keyAlias=$KEY_ALIAS" >> app/signing.properties
           echo "keyPassword=$KEY_PASSWORD" >> app/signing.properties
-          echo "Signing config created:"
-          cat app/signing.properties
         fi
 
     - name: Build Debug APK
-      uses: gradle/gradle-build-action@v2
-      with:
-        arguments: assembleDebug --stacktrace
-        cache-disabled: true
+      run: ./gradlew assembleDebug --stacktrace --no-daemon
+
+    - name: Check Debug APK
+      run: ls -la app/build/outputs/apk/debug/ || echo "Debug output directory not found"
 
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
+      if: success()
       with:
         name: debug-apk
         path: app/build/outputs/apk/debug/*.apk
         retention-days: 30
+        if-no-files-found: warn
 
     - name: Build Release APK
-      uses: gradle/gradle-build-action@v2
-      with:
-        arguments: assembleRelease --stacktrace
-        cache-disabled: true
+      run: ./gradlew assembleRelease --stacktrace --no-daemon
+
+    - name: Check Release APK
+      run: ls -la app/build/outputs/apk/release/ || echo "Release output directory not found"
 
     - name: Upload Release APK
       uses: actions/upload-artifact@v4
+      if: success()
       with:
         name: release-apk
         path: app/build/outputs/apk/release/*.apk
         retention-days: 30
+        if-no-files-found: warn
 
     - name: Create Release
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main' && success()
       uses: softprops/action-gh-release@v1
       with:
         files: |
@@ -105,10 +110,6 @@ jobs:
           3. 开启无障碍服务和悬浮窗权限
           4. 准备红包截图到 `/sdcard/Pictures/红包.png`
           5. 点击"开始抢红包"
-          
-          ## 文件说明
-          - Debug APK: 调试版本，包含日志
-          - Release APK: 发布版本，性能更好
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
