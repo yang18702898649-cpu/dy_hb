@@ -53,12 +53,10 @@ jobs:
         KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       run: |
         if [ -n "$KEYSTORE_PASSWORD" ]; then
-          cat > app/signing.properties << EOF
-storeFile=keystore.jks
-storePassword=$KEYSTORE_PASSWORD
-keyAlias=$KEY_ALIAS
-keyPassword=$KEY_PASSWORD
-EOF
+          echo "storeFile=keystore.jks" > app/signing.properties
+          echo "storePassword=$KEYSTORE_PASSWORD" >> app/signing.properties
+          echo "keyAlias=$KEY_ALIAS" >> app/signing.properties
+          echo "keyPassword=$KEY_PASSWORD" >> app/signing.properties
           echo "Signing config created:"
           cat app/signing.properties
         fi
