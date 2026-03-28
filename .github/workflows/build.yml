@@ -65,6 +65,7 @@ jobs:
       uses: gradle/gradle-build-action@v2
       with:
         arguments: assembleDebug --stacktrace
+        cache-disabled: true
 
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
@@ -77,6 +78,7 @@ jobs:
       uses: gradle/gradle-build-action@v2
       with:
         arguments: assembleRelease --stacktrace
+        cache-disabled: true
 
     - name: Upload Release APK
       uses: actions/upload-artifact@v4
